@@ -66,10 +66,31 @@ body {
   text-shadow: 0 0 24px rgba(255, 176, 32, 0.45);
 }
 
+.header-right {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(12px, 1.5vw, 24px);
+}
+
 .counter {
   font-size: clamp(16px, 2.6vh, 30px);
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
+}
+
+.page-nav {
+  font-size: clamp(12px, 1.6vh, 16px);
+  padding: 0.4em 1em;
+  border-radius: 999px;
+  border: 1px solid var(--text-dim);
+  color: var(--text-dim);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.page-nav:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .counter span {
