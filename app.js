@@ -62,23 +62,24 @@
 
   function buildBoard() {
     boardEl.innerHTML = "";
-    LETTERS.forEach((letter, row) => {
+    LETTERS.forEach((letter, col) => {
+      const colEl = document.createElement("div");
+      colEl.className = "board-col";
+
       const letterEl = document.createElement("div");
       letterEl.className = `board-letter letter-${letter}`;
       letterEl.textContent = letter;
-      boardEl.appendChild(letterEl);
+      colEl.appendChild(letterEl);
 
-      const rowEl = document.createElement("div");
-      rowEl.className = "board-row";
       for (let i = 1; i <= 15; i++) {
-        const number = row * 15 + i;
+        const number = col * 15 + i;
         const cell = document.createElement("div");
         cell.className = "board-cell";
         cell.dataset.number = String(number);
         cell.textContent = String(number);
-        rowEl.appendChild(cell);
+        colEl.appendChild(cell);
       }
-      boardEl.appendChild(rowEl);
+      boardEl.appendChild(colEl);
     });
   }
 

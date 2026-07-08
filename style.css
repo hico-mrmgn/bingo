@@ -13,6 +13,8 @@
   --letter-n: #3ecf6e;
   --letter-g: #38a8ff;
   --letter-o: #b06dff;
+  /* 抽選ドラムの直径: 高さ・横幅の小さい方に合わせる */
+  --drum-size: min(58vh, 40vw);
 }
 
 * {
@@ -26,21 +28,28 @@ html, body {
 }
 
 body {
-  background: radial-gradient(ellipse at 50% -20%, #223056 0%, var(--bg) 60%);
+  background: radial-gradient(ellipse at 35% -20%, #223056 0%, var(--bg) 60%);
   color: var(--text);
   font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  display: flex;
-  justify-content: center;
 }
 
+/* ---- 2:1 の左右分割 ---- */
+
 .stage {
-  width: min(1400px, 100%);
-  min-height: 100%;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2vw;
+  padding: 2vh 2vw;
+}
+
+.main-panel {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2vh 3vw 4vh;
-  gap: 2.5vh;
+  justify-content: space-between;
+  gap: 1.5vh;
 }
 
 .header {
@@ -51,14 +60,14 @@ body {
 }
 
 .title {
-  font-size: clamp(28px, 4vw, 56px);
+  font-size: clamp(28px, 4vh, 52px);
   letter-spacing: 0.35em;
   color: var(--accent);
   text-shadow: 0 0 24px rgba(255, 176, 32, 0.45);
 }
 
 .counter {
-  font-size: clamp(16px, 2vw, 28px);
+  font-size: clamp(16px, 2.6vh, 30px);
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -70,16 +79,9 @@ body {
 
 /* ---- 抽選ドラム ---- */
 
-.drum-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2vh;
-}
-
 .drum {
-  width: clamp(220px, 30vh, 340px);
-  height: clamp(220px, 30vh, 340px);
+  width: var(--drum-size);
+  height: var(--drum-size);
   border-radius: 50%;
   background: radial-gradient(circle at 32% 28%, #2c3a60 0%, var(--bg-panel) 65%);
   border: 6px solid rgba(255, 176, 32, 0.55);
@@ -90,7 +92,6 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
 }
 
 .drum.spinning {
@@ -113,13 +114,13 @@ body {
 }
 
 .drum-letter {
-  font-size: clamp(28px, 5vh, 52px);
+  font-size: calc(var(--drum-size) * 0.14);
   font-weight: 800;
   line-height: 1;
 }
 
 .drum-number {
-  font-size: clamp(96px, 18vh, 190px);
+  font-size: calc(var(--drum-size) * 0.52);
   font-weight: 800;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -137,13 +138,13 @@ body {
 .recent {
   display: flex;
   gap: 12px;
-  min-height: clamp(40px, 6vh, 56px);
+  min-height: clamp(40px, 7vh, 64px);
   align-items: center;
 }
 
 .recent-chip {
-  min-width: clamp(40px, 6vh, 56px);
-  height: clamp(40px, 6vh, 56px);
+  min-width: clamp(40px, 7vh, 64px);
+  height: clamp(40px, 7vh, 64px);
   padding: 0 10px;
   border-radius: 999px;
   background: var(--bg-panel);
@@ -152,7 +153,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(18px, 3vh, 28px);
+  font-size: clamp(18px, 3.4vh, 32px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -219,43 +220,42 @@ body {
   font-size: clamp(12px, 1.5vh, 16px);
 }
 
-/* ---- 履歴ボード ---- */
+/* ---- 履歴ボード（縦型: B〜O の5列 × 15行） ---- */
 
 .board {
-  width: 100%;
+  min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 14px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(6px, 0.8vw, 12px);
   background: rgba(0, 0, 0, 0.25);
   border-radius: 16px;
-  padding: clamp(12px, 2vh, 24px);
+  padding: clamp(10px, 1.5vh, 20px);
+}
+
+.board-col {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto repeat(15, minmax(0, 1fr));
+  gap: clamp(4px, 0.7vh, 8px);
 }
 
 .board-letter {
-  font-size: clamp(20px, 3.4vh, 40px);
+  font-size: clamp(18px, 3.4vh, 40px);
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: clamp(32px, 5vh, 56px);
-}
-
-.board-row {
-  display: grid;
-  grid-template-columns: repeat(15, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
 }
 
 .board-cell {
-  aspect-ratio: 1;
+  min-height: 0;
   border-radius: 10px;
   background: var(--cell);
   color: var(--text-dim);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(14px, 2.4vh, 28px);
+  font-size: clamp(13px, 2.6vh, 30px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   transition: background 0.25s ease, color 0.25s ease;
@@ -269,19 +269,28 @@ body {
 .board-cell.latest {
   animation: cell-pulse 1s ease-in-out infinite;
   outline: 3px solid #fff;
-  outline-offset: 2px;
+  outline-offset: -1px;
 }
 
 @keyframes cell-pulse {
   0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.12); }
+  50%      { transform: scale(1.08); }
 }
 
-@media (max-width: 760px) {
-  .board-row {
-    gap: 4px;
+/* ---- 狭い画面では縦積みにフォールバック ---- */
+
+@media (max-width: 900px) {
+  :root {
+    --drum-size: min(38vh, 70vw);
   }
-  .board {
-    gap: 6px 8px;
+  .stage {
+    height: auto;
+    min-height: 100vh;
+    grid-template-columns: 1fr;
+    gap: 3vh;
+  }
+  .board-col {
+    grid-template-rows: auto;
+    grid-auto-rows: minmax(32px, auto);
   }
 }
