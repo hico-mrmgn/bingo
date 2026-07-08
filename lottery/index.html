@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>景品クジ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="stage">
+    <section class="main-panel">
+      <header class="header">
+        <h1 class="title">LOTTERY</h1>
+        <div class="counter">残りクジ <span id="remaining-count">0</span> 本</div>
+      </header>
+
+      <div class="ticket" id="ticket">
+        <span class="ticket-label" id="ticket-label">ビンゴおめでとう！クジを引いてね</span>
+        <span class="ticket-prize" id="ticket-prize">？</span>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="draw-button" id="draw-button">クジを引く</button>
+        <button type="button" class="sound-button" id="sound-button" aria-pressed="true">🔊 効果音 ON</button>
+        <button type="button" class="edit-button" id="edit-button">景品を編集</button>
+        <button type="button" class="reset-button" id="reset-button">リセット</button>
+      </div>
+      <p class="hint">スペースキーでも引けます</p>
+    </section>
+
+    <aside class="side">
+      <section class="side-section">
+        <h2 class="side-title">景品</h2>
+        <ul id="prize-list" class="prize-list"></ul>
+      </section>
+      <section class="side-section history-section">
+        <h2 class="side-title">当選履歴</h2>
+        <ol id="history-list" class="history-list"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="edit-dialog" class="edit-dialog">
+    <form method="dialog">
+      <h2 class="edit-title">景品リストを編集</h2>
+      <p class="edit-help">1行に1景品、「景品名 x本数」の形式（「x本数」を省略すると1本）。</p>
+      <textarea id="edit-textarea" rows="10" spellcheck="false"></textarea>
+      <p class="edit-help">保存すると残り本数は「本数 −（その景品の当選数）」で再計算されます。</p>
+      <div class="edit-actions">
+        <button value="cancel" class="edit-cancel">キャンセル</button>
+        <button value="save" class="edit-save">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
