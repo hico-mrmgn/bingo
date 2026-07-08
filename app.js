@@ -27,23 +27,47 @@
   let spinning = false;
   let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
 
-  // ---- 効果音（Web Audio API で合成・音声ファイル不使用） ----
+  // ---- 効果音 ----
+  // 基本は sound-data.js に埋め込んだ音源（SE114_2.m4a）を再生し、
+  // デコードできない環境では従来の Web Audio 合成音にフォールバックする
+
+  // 音源内で「ジャン！」が始まる位置（秒）。手前 0〜4 秒はドラムロール
+  const JINGLE_HIT_OFFSET = 4.0;
 
   let audioCtx = null;
   let noiseBuffer = null;
+  let jingleBuffer = null;
+  let jingleLoadStarted = false;
 
   function ensureAudio() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
     if (!audioCtx) {
       audioCtx = new Ctx();
-      // 1秒分のホワイトノイズ（スネア・シンバルの素）
+      // 1秒分のホワイトノイズ（フォールバック合成音の素）
       noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     }
     if (audioCtx.state === "suspended") audioCtx.resume();
+    loadJingle();
     return audioCtx;
+  }
+
+  function loadJingle() {
+    if (jingleLoadStarted || typeof BINGO_JINGLE_B64 === "undefined") return;
+    jingleLoadStarted = true;
+    try {
+      const bin = atob(BINGO_JINGLE_B64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      audioCtx.decodeAudioData(bytes.buffer).then(
+        (buffer) => { jingleBuffer = buffer; },
+        () => { jingleBuffer = null; }
+      );
+    } catch {
+      // デコード不可の環境では合成音のまま
+    }
   }
 
   function playRollStroke(time, volume) {
@@ -80,8 +104,25 @@
 
   function playDrumRoll(durationMs) {
     if (!soundOn || !ensureAudio()) return;
-    const start = audioCtx.currentTime + 0.02;
     const duration = durationMs / 1000;
+
+    if (jingleBuffer) {
+      // 音源のロール部分（0〜4秒）を回転時間ぶん再生し、確定直前に短くフェードアウト
+      const now = audioCtx.currentTime;
+      const src = audioCtx.createBufferSource();
+      src.buffer = jingleBuffer;
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(1, now);
+      gain.gain.setValueAtTime(1, now + duration - 0.04);
+      gain.gain.linearRampToValueAtTime(0, now + duration);
+      src.connect(gain);
+      gain.connect(audioCtx.destination);
+      src.start(now, 0, Math.min(duration, JINGLE_HIT_OFFSET));
+      return;
+    }
+
+    // フォールバック: 合成バズロール
+    const start = audioCtx.currentTime + 0.02;
     // 約33Hzの高速連打（バズロール）。タイミングと音量に微小なゆらぎを入れて
     // 機械的な印象を消す。小さく始めて終盤に強くなるクレッシェンド
     let t = 0;
@@ -157,9 +198,19 @@
     thump.stop(time + 0.13);
   }
 
-  // 「ジャジャン！」: 短い1打目 + 長く伸ばす2打目 + シンバル
+  // 確定音: 音源の「ジャン！」部分（4秒地点〜）を再生
   function playFanfare() {
     if (!soundOn || !ensureAudio()) return;
+
+    if (jingleBuffer) {
+      const src = audioCtx.createBufferSource();
+      src.buffer = jingleBuffer;
+      src.connect(audioCtx.destination);
+      src.start(audioCtx.currentTime, JINGLE_HIT_OFFSET);
+      return;
+    }
+
+    // フォールバック: 合成の「ジャジャン！」（短い1打目 + 長く伸ばす2打目 + シンバル）
     const now = audioCtx.currentTime;
     playBrassStab(now, 0.16, 0.5);
     playCymbal(now, 0.12, 0.25);
@@ -341,6 +392,8 @@
   drawButton.addEventListener("click", draw);
   resetButton.addEventListener("click", reset);
   soundButton.addEventListener("click", toggleSound);
+  // 最初の操作（ユーザージェスチャー）の時点で音源のデコードを済ませておく
+  document.addEventListener("pointerdown", () => ensureAudio(), { once: true });
   document.addEventListener("keydown", (e) => {
     if (
       e.code === "Space" &&
