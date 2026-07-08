@@ -200,7 +200,8 @@ body {
   box-shadow: 0 6px 0 #555, 0 10px 24px rgba(0, 0, 0, 0.3);
 }
 
-.reset-button {
+.reset-button,
+.sound-button {
   font-size: clamp(13px, 1.6vh, 17px);
   padding: 0.6em 1.4em;
   border-radius: 999px;
@@ -208,6 +209,15 @@ body {
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
+}
+
+.sound-button:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.sound-button[aria-pressed="false"] {
+  opacity: 0.6;
 }
 
 .reset-button:hover {

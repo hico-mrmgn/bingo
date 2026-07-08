@@ -5,6 +5,7 @@
   const LETTERS = ["B", "I", "N", "G", "O"];
   const RECENT_COUNT = 5;
   const STORAGE_KEY = "bingo-caller-state-v1";
+  const SOUND_KEY = "bingo-caller-sound-v1";
 
   const SPIN_DURATION_MS = 1800;
   const SPIN_START_INTERVAL_MS = 40;
@@ -19,10 +20,108 @@
   const resetButton = document.getElementById("reset-button");
   const drawnCountEl = document.getElementById("drawn-count");
   const remainingCountEl = document.getElementById("remaining-count");
+  const soundButton = document.getElementById("sound-button");
 
   // 抽選済み番号（抽選順）
   let drawn = loadState();
   let spinning = false;
+  let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
+
+  // ---- 効果音（Web Audio API で合成・音声ファイル不使用） ----
+
+  let audioCtx = null;
+  let noiseBuffer = null;
+
+  function ensureAudio() {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!audioCtx) {
+      audioCtx = new Ctx();
+      // 1秒分のホワイトノイズ（スネア・シンバルの素）
+      noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playSnare(time, volume) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1800;
+    filter.Q.value = 0.8;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(volume, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    src.start(time);
+    src.stop(time + 0.08);
+  }
+
+  function playDrumRoll(durationMs) {
+    if (!soundOn || !ensureAudio()) return;
+    const start = audioCtx.currentTime + 0.02;
+    const duration = durationMs / 1000;
+    const hitInterval = 0.045;
+    for (let t = 0; t < duration; t += hitInterval) {
+      // 終盤に向けてクレッシェンド
+      playSnare(start + t, 0.12 + 0.2 * (t / duration));
+    }
+  }
+
+  function playFanfare() {
+    if (!soundOn || !ensureAudio()) return;
+    const now = audioCtx.currentTime;
+
+    // シンバル
+    const cymbal = audioCtx.createBufferSource();
+    cymbal.buffer = noiseBuffer;
+    const highpass = audioCtx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = 5000;
+    const cymbalGain = audioCtx.createGain();
+    cymbalGain.gain.setValueAtTime(0.3, now);
+    cymbalGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    cymbal.connect(highpass);
+    highpass.connect(cymbalGain);
+    cymbalGain.connect(audioCtx.destination);
+    cymbal.start(now);
+    cymbal.stop(now + 1);
+
+    // ベル2音（A5 → E6）
+    [[880, 0], [1318.5, 0.09]].forEach(([freq, delay]) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.22, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.5);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.55);
+    });
+  }
+
+  function toggleSound() {
+    soundOn = !soundOn;
+    try {
+      localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off");
+    } catch {
+      // 保存できなくても切り替え自体は有効
+    }
+    renderSoundButton();
+  }
+
+  function renderSoundButton() {
+    soundButton.textContent = soundOn ? "🔊 効果音 ON" : "🔇 効果音 OFF";
+    soundButton.setAttribute("aria-pressed", String(soundOn));
+  }
 
   function loadState() {
     try {
@@ -138,18 +237,18 @@
     spinning = true;
     drum.classList.add("spinning");
     drum.classList.remove("settled");
+    playDrumRoll(SPIN_DURATION_MS);
     render();
 
     const start = performance.now();
 
+    // 確定は setTimeout で保証する（タブが非表示だと rAF が止まるため）
+    setTimeout(() => settle(picked), SPIN_DURATION_MS);
+
     function tick(now) {
-      const elapsed = now - start;
-      if (elapsed >= SPIN_DURATION_MS) {
-        settle(picked);
-        return;
-      }
+      if (!spinning) return;
       // だんだん減速するルーレット表示（表示のみ・結果は確定済み）
-      const progress = elapsed / SPIN_DURATION_MS;
+      const progress = Math.min((now - start) / SPIN_DURATION_MS, 1);
       const interval =
         SPIN_START_INTERVAL_MS +
         (SPIN_END_INTERVAL_MS - SPIN_START_INTERVAL_MS) * progress * progress;
@@ -165,6 +264,7 @@
     spinning = false;
     drum.classList.remove("spinning");
     drum.classList.add("settled");
+    playFanfare();
     render();
   }
 
@@ -181,13 +281,20 @@
 
   drawButton.addEventListener("click", draw);
   resetButton.addEventListener("click", reset);
+  soundButton.addEventListener("click", toggleSound);
   document.addEventListener("keydown", (e) => {
-    if (e.code === "Space" && !e.repeat && document.activeElement !== resetButton) {
+    if (
+      e.code === "Space" &&
+      !e.repeat &&
+      document.activeElement !== resetButton &&
+      document.activeElement !== soundButton
+    ) {
       e.preventDefault();
       draw();
     }
   });
 
   buildBoard();
+  renderSoundButton();
   render();
 })();
