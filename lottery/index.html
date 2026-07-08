@@ -12,7 +12,7 @@
       <header class="header">
         <h1 class="title">LOTTERY</h1>
         <div class="counter">
-          <span id="drawn-count">0</span> / 75　残り <span id="remaining-count">75</span>
+          <span id="drawn-count">0</span> / <span id="max-count">75</span>　残り <span id="remaining-count">75</span>
         </div>
       </header>
 
@@ -24,6 +24,7 @@
       <div class="controls">
         <button type="button" class="draw-button" id="draw-button">クジを引く</button>
         <button type="button" class="sound-button" id="sound-button" aria-pressed="true">🔊 効果音 ON</button>
+        <button type="button" class="edit-button" id="edit-button">本数を編集</button>
         <button type="button" class="reset-button" id="reset-button">リセット</button>
       </div>
       <p class="hint">スペースキーでも引けます</p>
@@ -31,6 +32,19 @@
 
     <aside class="board" id="board" aria-label="抽選済み景品番号ボード"></aside>
   </main>
+
+  <dialog id="edit-dialog" class="edit-dialog">
+    <form id="edit-form">
+      <h2 class="edit-title">クジの本数を編集</h2>
+      <p class="edit-help">景品番号は 1 から始まる連番になります（1〜999 本）。</p>
+      <input type="number" id="edit-input" min="1" max="999" step="1" inputmode="numeric" required>
+      <p class="edit-help">本数を減らした場合、範囲外の番号の当選履歴は消えます。</p>
+      <div class="edit-actions">
+        <button type="button" class="edit-cancel" id="edit-cancel">キャンセル</button>
+        <button type="submit" class="edit-save" id="edit-save">保存</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="app.js"></script>
 </body>

@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const MAX_NUMBER = 75;
+  const DEFAULT_MAX = 75;
+  const LIMIT_MAX = 999;
   const BOARD_COLS = 5;
   const RECENT_COUNT = 5;
   const STORAGE_KEY = "prize-lottery-numbers-v1";
@@ -17,12 +18,18 @@
   const boardEl = document.getElementById("board");
   const drawButton = document.getElementById("draw-button");
   const resetButton = document.getElementById("reset-button");
+  const editButton = document.getElementById("edit-button");
   const drawnCountEl = document.getElementById("drawn-count");
+  const maxCountEl = document.getElementById("max-count");
   const remainingCountEl = document.getElementById("remaining-count");
   const soundButton = document.getElementById("sound-button");
+  const editDialog = document.getElementById("edit-dialog");
+  const editForm = document.getElementById("edit-form");
+  const editInput = document.getElementById("edit-input");
+  const editCancel = document.getElementById("edit-cancel");
 
-  // 抽選済み景品番号（抽選順）
-  let drawn = loadState();
+  // クジの本数と抽選済み景品番号（抽選順）
+  let state = loadState();
   let spinning = false;
   let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
 
@@ -183,33 +190,45 @@
 
   // ---- 状態管理 ----
 
+  function sanitizeDrawn(raw, max) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    return raw.filter(
+      (n) => Number.isInteger(n) && n >= 1 && n <= max && !seen.has(n) && seen.add(n)
+    );
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
+      if (!raw) return { max: DEFAULT_MAX, drawn: [] };
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      const seen = new Set();
-      return parsed.filter(
-        (n) => Number.isInteger(n) && n >= 1 && n <= MAX_NUMBER && !seen.has(n) && seen.add(n)
-      );
+      // 旧形式（番号の配列のみ）は本数 75 として引き継ぐ
+      if (Array.isArray(parsed)) {
+        return { max: DEFAULT_MAX, drawn: sanitizeDrawn(parsed, DEFAULT_MAX) };
+      }
+      const max =
+        Number.isInteger(parsed.max) && parsed.max >= 1 && parsed.max <= LIMIT_MAX
+          ? parsed.max
+          : DEFAULT_MAX;
+      return { max, drawn: sanitizeDrawn(parsed.drawn, max) };
     } catch {
-      return [];
+      return { max: DEFAULT_MAX, drawn: [] };
     }
   }
 
   function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(drawn));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // プライベートモード等で保存できなくてもゲームは続行できる
     }
   }
 
   function remainingNumbers() {
-    const drawnSet = new Set(drawn);
+    const drawnSet = new Set(state.drawn);
     const rest = [];
-    for (let n = 1; n <= MAX_NUMBER; n++) {
+    for (let n = 1; n <= state.max; n++) {
       if (!drawnSet.has(n)) rest.push(n);
     }
     return rest;
@@ -219,12 +238,14 @@
 
   function buildBoard() {
     boardEl.innerHTML = "";
-    const rows = MAX_NUMBER / BOARD_COLS;
+    const rows = Math.ceil(state.max / BOARD_COLS);
+    boardEl.style.setProperty("--board-rows", String(rows));
     for (let col = 0; col < BOARD_COLS; col++) {
       const colEl = document.createElement("div");
       colEl.className = "board-col";
       for (let i = 1; i <= rows; i++) {
         const number = col * rows + i;
+        if (number > state.max) break;
         const cell = document.createElement("div");
         cell.className = "board-cell";
         cell.dataset.number = String(number);
@@ -240,10 +261,12 @@
   }
 
   function render() {
+    const { drawn, max } = state;
     const latest = drawn.length > 0 ? drawn[drawn.length - 1] : null;
 
     drawnCountEl.textContent = String(drawn.length);
-    remainingCountEl.textContent = String(MAX_NUMBER - drawn.length);
+    maxCountEl.textContent = String(max);
+    remainingCountEl.textContent = String(max - drawn.length);
 
     if (!spinning) showOnDrum(latest);
 
@@ -267,7 +290,7 @@
       cell.classList.toggle("latest", n === latest);
     });
 
-    const finished = drawn.length >= MAX_NUMBER;
+    const finished = drawn.length >= max;
     drawButton.disabled = spinning || finished;
     drawButton.textContent = finished ? "クジは終了！" : "クジを引く";
   }
@@ -275,7 +298,7 @@
   // ---- 抽選 ----
 
   function draw() {
-    if (spinning) return;
+    if (spinning || editDialog.open) return;
     const rest = remainingNumbers();
     if (rest.length === 0) return;
 
@@ -305,7 +328,7 @@
   }
 
   function settle(picked) {
-    drawn.push(picked);
+    state.drawn.push(picked);
     saveState();
     spinning = false;
     drum.classList.remove("spinning");
@@ -316,24 +339,59 @@
 
   function reset() {
     if (spinning) return;
-    if (drawn.length > 0 && !confirm("当選履歴をすべて消してリセットします。よろしいですか？")) {
+    if (
+      state.drawn.length > 0 &&
+      !confirm("当選履歴をすべて消してリセットします。よろしいですか？")
+    ) {
       return;
     }
-    drawn = [];
+    state.drawn = [];
     saveState();
     drum.classList.remove("settled");
     render();
   }
 
+  // ---- 本数の編集 ----
+
+  function openEditor() {
+    if (spinning) return;
+    editInput.value = String(state.max);
+    editDialog.showModal();
+  }
+
+  function applyEdit() {
+    const max = Number(editInput.value);
+    if (!Number.isInteger(max) || max < 1 || max > LIMIT_MAX) {
+      alert(`本数は 1〜${LIMIT_MAX} の整数で入力してください。`);
+      return;
+    }
+    state.max = max;
+    // 本数を減らした場合、範囲外になった番号の履歴は落とす
+    state.drawn = state.drawn.filter((n) => n <= max);
+    saveState();
+    buildBoard();
+    render();
+    editDialog.close();
+  }
+
+  editForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    applyEdit();
+  });
+  editCancel.addEventListener("click", () => editDialog.close());
+
   drawButton.addEventListener("click", draw);
   resetButton.addEventListener("click", reset);
   soundButton.addEventListener("click", toggleSound);
+  editButton.addEventListener("click", openEditor);
   document.addEventListener("keydown", (e) => {
     if (
       e.code === "Space" &&
       !e.repeat &&
+      !editDialog.open &&
       document.activeElement !== resetButton &&
-      document.activeElement !== soundButton
+      document.activeElement !== soundButton &&
+      document.activeElement !== editButton
     ) {
       e.preventDefault();
       draw();

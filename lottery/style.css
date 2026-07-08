@@ -192,7 +192,8 @@ body {
 }
 
 .reset-button,
-.sound-button {
+.sound-button,
+.edit-button {
   font-size: clamp(13px, 1.6vh, 17px);
   padding: 0.6em 1.4em;
   border-radius: 999px;
@@ -202,7 +203,8 @@ body {
   cursor: pointer;
 }
 
-.sound-button:hover {
+.sound-button:hover,
+.edit-button:hover {
   color: var(--text);
   border-color: var(--text);
 }
@@ -221,9 +223,10 @@ body {
   font-size: clamp(12px, 1.5vh, 16px);
 }
 
-/* ---- 景品番号ボード（5列 × 15行） ---- */
+/* ---- 景品番号ボード（5列 × 可変行。行数は JS が --board-rows で指定） ---- */
 
 .board {
+  --board-rows: 15;
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -231,13 +234,22 @@ body {
   background: rgba(0, 0, 0, 0.25);
   border-radius: 16px;
   padding: clamp(10px, 1.5vh, 20px);
+  /* 本数が多いときは画面に収めず縦スクロール */
+  max-height: calc(100vh - 4vh);
+  overflow-y: auto;
+}
+
+/* 行数が多いボードはセルを潰さず最低高さを確保する */
+.board-col > .board-cell {
+  min-height: clamp(20px, 2.8vh, 34px);
 }
 
 .board-col {
   min-width: 0;
   display: grid;
-  grid-template-rows: repeat(15, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr));
   gap: clamp(4px, 0.7vh, 8px);
+  align-content: start;
 }
 
 .board-cell {
@@ -268,6 +280,86 @@ body {
 @keyframes cell-pulse {
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.08); }
+}
+
+/* ---- 本数編集ダイアログ ---- */
+
+.edit-dialog {
+  margin: auto;
+  width: min(420px, 90vw);
+  border: 1px solid var(--text-dim);
+  border-radius: 16px;
+  background: var(--bg-panel);
+  color: var(--text);
+  padding: 24px;
+}
+
+.edit-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.edit-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-title {
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.edit-help {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.edit-dialog input {
+  width: 100%;
+  font: inherit;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-dim);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.edit-actions button {
+  font-size: 15px;
+  padding: 0.5em 1.6em;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.edit-cancel {
+  border: 1px solid var(--text-dim);
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.edit-cancel:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.edit-save {
+  border: none;
+  font-weight: 700;
+  color: #2a1c00;
+  background: linear-gradient(180deg, #ffd158 0%, var(--accent) 100%);
+}
+
+.edit-save:hover {
+  filter: brightness(1.06);
 }
 
 /* ---- 狭い画面では縦積みにフォールバック ---- */
