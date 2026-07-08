@@ -94,38 +94,77 @@
     }
   }
 
-  function playFanfare() {
-    if (!soundOn || !ensureAudio()) return;
-    const now = audioCtx.currentTime;
-
-    // シンバル
+  function playCymbal(time, volume, decay) {
     const cymbal = audioCtx.createBufferSource();
     cymbal.buffer = noiseBuffer;
     const highpass = audioCtx.createBiquadFilter();
     highpass.type = "highpass";
     highpass.frequency.value = 5000;
-    const cymbalGain = audioCtx.createGain();
-    cymbalGain.gain.setValueAtTime(0.3, now);
-    cymbalGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(volume, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + decay);
     cymbal.connect(highpass);
-    highpass.connect(cymbalGain);
-    cymbalGain.connect(audioCtx.destination);
-    cymbal.start(now);
-    cymbal.stop(now + 1);
+    highpass.connect(gain);
+    gain.connect(audioCtx.destination);
+    cymbal.start(time);
+    cymbal.stop(time + decay + 0.1);
+  }
 
-    // ベル2音（A5 → E6）
-    [[880, 0], [1318.5, 0.09]].forEach(([freq, delay]) => {
-      const osc = audioCtx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0.22, now + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.5);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(now + delay);
-      osc.stop(now + delay + 0.55);
+  // ブラス風の和音スタブ1発（「ジャ」）
+  function playBrassStab(time, duration, volume) {
+    // C メジャー（C3 ベース + C4/E4/G4/C5）。±6セントのデチューンで厚みを出す
+    const freqs = [130.81, 261.63, 329.63, 392.0, 523.25];
+    const lowpass = audioCtx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.setValueAtTime(3200, time);
+    lowpass.frequency.exponentialRampToValueAtTime(1200, time + duration);
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(0.0001, time);
+    master.gain.exponentialRampToValueAtTime(volume, time + 0.02);
+    // 長い音は少しホールドしてから減衰させ、「ジャーン」の余韻を出す
+    const holdEnd = time + Math.min(0.3, duration * 0.25);
+    master.gain.exponentialRampToValueAtTime(volume * 0.5, holdEnd);
+    master.gain.exponentialRampToValueAtTime(0.001, time + duration);
+    lowpass.connect(master);
+    master.connect(audioCtx.destination);
+
+    freqs.forEach((freq) => {
+      [-6, 6].forEach((cents) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = "sawtooth";
+        osc.frequency.value = freq;
+        osc.detune.value = cents;
+        const oscGain = audioCtx.createGain();
+        oscGain.gain.value = freq < 200 ? 0.09 : 0.05;
+        osc.connect(oscGain);
+        oscGain.connect(lowpass);
+        osc.start(time);
+        osc.stop(time + duration + 0.05);
+      });
     });
+
+    // 胴打ち（アタックの「ドン」）
+    const thump = audioCtx.createOscillator();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime(150, time);
+    thump.frequency.exponentialRampToValueAtTime(60, time + 0.09);
+    const thumpGain = audioCtx.createGain();
+    thumpGain.gain.setValueAtTime(volume * 0.9, time);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    thump.connect(thumpGain);
+    thumpGain.connect(audioCtx.destination);
+    thump.start(time);
+    thump.stop(time + 0.13);
+  }
+
+  // 「ジャジャン！」: 短い1打目 + 長く伸ばす2打目 + シンバル
+  function playFanfare() {
+    if (!soundOn || !ensureAudio()) return;
+    const now = audioCtx.currentTime;
+    playBrassStab(now, 0.16, 0.5);
+    playCymbal(now, 0.12, 0.25);
+    playBrassStab(now + 0.21, 1.3, 0.55);
+    playCymbal(now + 0.21, 0.3, 1.2);
   }
 
   function toggleSound() {
