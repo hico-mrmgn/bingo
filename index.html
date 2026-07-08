@@ -8,14 +8,14 @@
 </head>
 <body>
   <main class="stage">
-    <header class="header">
-      <h1 class="title">BINGO</h1>
-      <div class="counter">
-        <span id="drawn-count">0</span> / 75　残り <span id="remaining-count">75</span>
-      </div>
-    </header>
+    <section class="main-panel">
+      <header class="header">
+        <h1 class="title">BINGO</h1>
+        <div class="counter">
+          <span id="drawn-count">0</span> / 75　残り <span id="remaining-count">75</span>
+        </div>
+      </header>
 
-    <section class="drum-area">
       <div class="drum" id="drum">
         <span class="drum-letter" id="drum-letter">&nbsp;</span>
         <span class="drum-number" id="drum-number">--</span>
@@ -28,7 +28,7 @@
       <p class="hint">スペースキーでも抽選できます</p>
     </section>
 
-    <section class="board" id="board" aria-label="抽選済み番号ボード"></section>
+    <aside class="board" id="board" aria-label="抽選済み番号ボード"></aside>
   </main>
 
   <script src="app.js"></script>
