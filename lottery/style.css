@@ -32,10 +32,19 @@ body {
 
 .stage {
   height: 100vh;
+  /* モバイルブラウザのアドレスバーを除いた実表示域に合わせる */
+  height: 100dvh;
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 2vw;
   padding: 2vh 2vw;
+  /* ノッチ・ホームバー領域を避ける */
+  padding: calc(2vh + env(safe-area-inset-top)) calc(2vw + env(safe-area-inset-right)) calc(2vh + env(safe-area-inset-bottom)) calc(2vw + env(safe-area-inset-left));
+}
+
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .main-panel {
@@ -371,11 +380,78 @@ body {
   .stage {
     height: auto;
     min-height: 100vh;
+    min-height: 100dvh;
     grid-template-columns: 1fr;
     gap: 3vh;
+  }
+  .recent {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 8px;
+  }
+  .controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .board {
+    /* 縦積み時はボード内スクロールをやめてページスクロールに統一 */
+    max-height: none;
+    overflow-y: visible;
   }
   .board-col {
     grid-template-rows: none;
     grid-auto-rows: minmax(32px, auto);
+  }
+}
+
+/* ---- スマホ幅 ---- */
+
+@media (max-width: 600px) {
+  :root {
+    --drum-size: min(34vh, 78vw);
+  }
+  .stage {
+    gap: 20px;
+  }
+  .main-panel {
+    gap: 14px;
+  }
+  .header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .controls {
+    width: 100%;
+    gap: 10px 12px;
+  }
+  .draw-button {
+    /* 主ボタンは1行占有して押しやすく */
+    flex-basis: 100%;
+    padding: 0.6em 0;
+  }
+  .reset-button,
+  .sound-button,
+  .edit-button {
+    font-size: 14px;
+    min-height: 44px;
+    padding: 0.6em 1.2em;
+  }
+  .board {
+    gap: 5px;
+    padding: 10px;
+  }
+  .board-col {
+    grid-auto-rows: minmax(30px, auto);
+    gap: 4px;
+  }
+  .edit-dialog {
+    padding: 18px;
+  }
+}
+
+/* タッチ端末にキーボード操作のヒントは不要 */
+@media (hover: none) and (pointer: coarse) {
+  .hint {
+    display: none;
   }
 }
