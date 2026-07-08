@@ -46,31 +46,51 @@
     return audioCtx;
   }
 
-  function playSnare(time, volume) {
-    const src = audioCtx.createBufferSource();
-    src.buffer = noiseBuffer;
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 1800;
-    filter.Q.value = 0.8;
-    const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(volume, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioCtx.destination);
-    src.start(time);
-    src.stop(time + 0.08);
+  function playRollStroke(time, volume) {
+    // スネアワイヤー: 高域ノイズ。減衰を打点間隔より長くして前後の打音と重ね、
+    // 粒が聞こえない連続したロールにする
+    const wire = audioCtx.createBufferSource();
+    wire.buffer = noiseBuffer;
+    const wireFilter = audioCtx.createBiquadFilter();
+    wireFilter.type = "bandpass";
+    wireFilter.frequency.value = 4000;
+    wireFilter.Q.value = 0.5;
+    const wireGain = audioCtx.createGain();
+    wireGain.gain.setValueAtTime(volume, time);
+    wireGain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+    wire.connect(wireFilter);
+    wireFilter.connect(wireGain);
+    wireGain.connect(audioCtx.destination);
+    wire.start(time);
+    wire.stop(time + 0.1);
+
+    // 胴鳴り: 低域の短いトーンで太鼓らしい厚みを足す
+    const body = audioCtx.createOscillator();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(220, time);
+    body.frequency.exponentialRampToValueAtTime(170, time + 0.05);
+    const bodyGain = audioCtx.createGain();
+    bodyGain.gain.setValueAtTime(volume * 0.35, time);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.055);
+    body.connect(bodyGain);
+    bodyGain.connect(audioCtx.destination);
+    body.start(time);
+    body.stop(time + 0.06);
   }
 
   function playDrumRoll(durationMs) {
     if (!soundOn || !ensureAudio()) return;
     const start = audioCtx.currentTime + 0.02;
     const duration = durationMs / 1000;
-    const hitInterval = 0.045;
-    for (let t = 0; t < duration; t += hitInterval) {
-      // 終盤に向けてクレッシェンド
-      playSnare(start + t, 0.12 + 0.2 * (t / duration));
+    // 約33Hzの高速連打（バズロール）。タイミングと音量に微小なゆらぎを入れて
+    // 機械的な印象を消す。小さく始めて終盤に強くなるクレッシェンド
+    let t = 0;
+    while (t < duration) {
+      const progress = t / duration;
+      const crescendo = 0.06 + 0.3 * progress * progress;
+      const volume = crescendo * (0.9 + Math.random() * 0.2);
+      playRollStroke(start + t, volume);
+      t += 0.03 + (Math.random() - 0.5) * 0.006;
     }
   }
 
