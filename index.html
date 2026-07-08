@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ビンゴ抽選マシン</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="stage">
+    <header class="header">
+      <h1 class="title">BINGO</h1>
+      <div class="counter">
+        <span id="drawn-count">0</span> / 75　残り <span id="remaining-count">75</span>
+      </div>
+    </header>
+
+    <section class="drum-area">
+      <div class="drum" id="drum">
+        <span class="drum-letter" id="drum-letter">&nbsp;</span>
+        <span class="drum-number" id="drum-number">--</span>
+      </div>
+      <div class="recent" id="recent" aria-label="直近の番号"></div>
+      <div class="controls">
+        <button type="button" class="draw-button" id="draw-button">抽選する</button>
+        <button type="button" class="reset-button" id="reset-button">リセット</button>
+      </div>
+      <p class="hint">スペースキーでも抽選できます</p>
+    </section>
+
+    <section class="board" id="board" aria-label="抽選済み番号ボード"></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
