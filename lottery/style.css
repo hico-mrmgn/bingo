@@ -5,11 +5,11 @@
   --text-dim: #8a96b5;
   --accent: #ffb020;
   --accent-strong: #ff5d5d;
-  --dot-0: #ff5d5d;
-  --dot-1: #ffb020;
-  --dot-2: #3ecf6e;
-  --dot-3: #38a8ff;
-  --dot-4: #b06dff;
+  --cell: #232f4d;
+  --cell-hit: #ffb020;
+  --cell-hit-text: #2a1c00;
+  /* 抽選ドラムの直径: 高さ・横幅の小さい方に合わせる */
+  --drum-size: min(58vh, 40vw);
 }
 
 * {
@@ -72,13 +72,12 @@ body {
   font-weight: 700;
 }
 
-/* ---- クジ結果パネル ---- */
+/* ---- 抽選ドラム ---- */
 
-.ticket {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  border-radius: 24px;
+.drum {
+  width: var(--drum-size);
+  height: var(--drum-size);
+  border-radius: 50%;
   background: radial-gradient(circle at 32% 28%, #2c3a60 0%, var(--bg-panel) 65%);
   border: 6px solid rgba(255, 176, 32, 0.55);
   box-shadow:
@@ -88,47 +87,72 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2vh;
-  padding: 3vh 3vw;
-  text-align: center;
 }
 
-.ticket.spinning {
-  animation: ticket-glow 0.4s ease-in-out infinite alternate;
+.drum.spinning {
+  animation: drum-glow 0.4s ease-in-out infinite alternate;
 }
 
-.ticket.settled {
-  animation: ticket-pop 0.45s ease-out;
+.drum.settled {
+  animation: drum-pop 0.45s ease-out;
 }
 
-@keyframes ticket-glow {
+@keyframes drum-glow {
   from { box-shadow: 0 0 30px rgba(255, 176, 32, 0.2), inset 0 0 40px rgba(0, 0, 0, 0.5); }
   to   { box-shadow: 0 0 70px rgba(255, 176, 32, 0.6), inset 0 0 40px rgba(0, 0, 0, 0.5); }
 }
 
-@keyframes ticket-pop {
-  0%   { transform: scale(0.94); }
-  55%  { transform: scale(1.04); }
+@keyframes drum-pop {
+  0%   { transform: scale(0.92); }
+  55%  { transform: scale(1.06); }
   100% { transform: scale(1); }
 }
 
-.ticket-label {
-  font-size: clamp(16px, 3vh, 34px);
-  color: var(--text-dim);
+.drum-caption {
+  font-size: calc(var(--drum-size) * 0.07);
   font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.3em;
 }
 
-.ticket-prize {
-  font-size: clamp(36px, 12vh, 110px);
+.drum-number {
+  font-size: calc(var(--drum-size) * 0.52);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
   text-shadow: 0 0 30px rgba(255, 176, 32, 0.35);
-  overflow-wrap: anywhere;
 }
 
-.ticket-prize.long {
-  font-size: clamp(28px, 7.5vh, 72px);
+/* ---- 直近の番号 ---- */
+
+.recent {
+  display: flex;
+  gap: 12px;
+  min-height: clamp(40px, 7vh, 64px);
+  align-items: center;
+}
+
+.recent-chip {
+  min-width: clamp(40px, 7vh, 64px);
+  height: clamp(40px, 7vh, 64px);
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--bg-panel);
+  border: 2px solid var(--text-dim);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(18px, 3.4vh, 32px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-chip.latest {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 16px rgba(255, 176, 32, 0.5);
 }
 
 /* ---- 操作 ---- */
@@ -136,8 +160,6 @@ body {
 .controls {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: 20px;
 }
 
@@ -170,8 +192,7 @@ body {
 }
 
 .reset-button,
-.sound-button,
-.edit-button {
+.sound-button {
   font-size: clamp(13px, 1.6vh, 17px);
   padding: 0.6em 1.4em;
   border-radius: 999px;
@@ -181,8 +202,7 @@ body {
   cursor: pointer;
 }
 
-.sound-button:hover,
-.edit-button:hover {
+.sound-button:hover {
   color: var(--text);
   border-color: var(--text);
 }
@@ -201,200 +221,69 @@ body {
   font-size: clamp(12px, 1.5vh, 16px);
 }
 
-/* ---- サイドパネル（景品リスト・当選履歴） ---- */
+/* ---- 景品番号ボード（5列 × 15行） ---- */
 
-.side {
+.board {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2vh;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(6px, 0.8vw, 12px);
   background: rgba(0, 0, 0, 0.25);
   border-radius: 16px;
   padding: clamp(10px, 1.5vh, 20px);
-  overflow: hidden;
 }
 
-.side-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1vh;
+.board-col {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: repeat(15, minmax(0, 1fr));
+  gap: clamp(4px, 0.7vh, 8px);
+}
+
+.board-cell {
   min-height: 0;
-}
-
-.history-section {
-  flex: 1;
-}
-
-.side-title {
-  font-size: clamp(15px, 2.2vh, 24px);
-  color: var(--accent);
-  letter-spacing: 0.15em;
-}
-
-.prize-list,
-.history-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(4px, 0.8vh, 10px);
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.prize-item {
+  border-radius: 10px;
+  background: var(--cell);
+  color: var(--text-dim);
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--bg-panel);
-  border-radius: 10px;
-  padding: clamp(6px, 1.2vh, 12px) 12px;
-  font-size: clamp(13px, 2vh, 22px);
+  justify-content: center;
+  font-size: clamp(13px, 2.6vh, 30px);
   font-weight: 700;
-}
-
-.prize-item.out {
-  opacity: 0.35;
-}
-
-.prize-item.out .prize-name {
-  text-decoration: line-through;
-}
-
-.prize-dot {
-  flex-shrink: 0;
-  width: 0.7em;
-  height: 0.7em;
-  border-radius: 50%;
-}
-
-.dot-0 { background: var(--dot-0); }
-.dot-1 { background: var(--dot-1); }
-.dot-2 { background: var(--dot-2); }
-.dot-3 { background: var(--dot-3); }
-.dot-4 { background: var(--dot-4); }
-
-.prize-name {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.prize-count {
-  color: var(--text-dim);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
-.history-item {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-size: clamp(12px, 1.8vh, 20px);
-  color: var(--text-dim);
-  padding: 0 12px;
+.board-cell.hit {
+  background: var(--cell-hit);
+  color: var(--cell-hit-text);
 }
 
-.history-item.latest {
-  color: var(--accent);
-  font-weight: 700;
+.board-cell.latest {
+  animation: cell-pulse 1s ease-in-out infinite;
+  outline: 3px solid #fff;
+  outline-offset: -1px;
 }
 
-.history-order {
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.85em;
-}
-
-/* ---- 景品編集ダイアログ ---- */
-
-.edit-dialog {
-  margin: auto;
-  width: min(560px, 90vw);
-  border: 1px solid var(--text-dim);
-  border-radius: 16px;
-  background: var(--bg-panel);
-  color: var(--text);
-  padding: 24px;
-}
-
-.edit-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.6);
-}
-
-.edit-dialog form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.edit-title {
-  font-size: 20px;
-  color: var(--accent);
-}
-
-.edit-help {
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
-.edit-dialog textarea {
-  width: 100%;
-  resize: vertical;
-  font: inherit;
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--text-dim);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.edit-actions button {
-  font-size: 15px;
-  padding: 0.5em 1.6em;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.edit-cancel {
-  border: 1px solid var(--text-dim);
-  background: transparent;
-  color: var(--text-dim);
-}
-
-.edit-cancel:hover {
-  color: var(--text);
-  border-color: var(--text);
-}
-
-.edit-save {
-  border: none;
-  font-weight: 700;
-  color: #2a1c00;
-  background: linear-gradient(180deg, #ffd158 0%, var(--accent) 100%);
-}
-
-.edit-save:hover {
-  filter: brightness(1.06);
+@keyframes cell-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
 }
 
 /* ---- 狭い画面では縦積みにフォールバック ---- */
 
 @media (max-width: 900px) {
+  :root {
+    --drum-size: min(38vh, 70vw);
+  }
   .stage {
     height: auto;
     min-height: 100vh;
     grid-template-columns: 1fr;
     gap: 3vh;
   }
-  .ticket {
-    min-height: 40vh;
+  .board-col {
+    grid-template-rows: none;
+    grid-auto-rows: minmax(32px, auto);
   }
 }

@@ -1,34 +1,28 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "prize-lottery-state-v1";
+  const MAX_NUMBER = 75;
+  const BOARD_COLS = 5;
+  const RECENT_COUNT = 5;
+  const STORAGE_KEY = "prize-lottery-numbers-v1";
   const SOUND_KEY = "prize-lottery-sound-v1";
 
   const SPIN_DURATION_MS = 2000;
-  const SPIN_START_INTERVAL_MS = 60;
-  const SPIN_END_INTERVAL_MS = 280;
+  const SPIN_START_INTERVAL_MS = 40;
+  const SPIN_END_INTERVAL_MS = 220;
 
-  const DEFAULT_PRIZES = [
-    { name: "1等 豪華賞品", total: 1 },
-    { name: "2等 すてきな賞品", total: 2 },
-    { name: "3等 お楽しみ賞品", total: 3 },
-  ];
-
-  const ticket = document.getElementById("ticket");
-  const ticketLabel = document.getElementById("ticket-label");
-  const ticketPrize = document.getElementById("ticket-prize");
-  const remainingCountEl = document.getElementById("remaining-count");
-  const prizeListEl = document.getElementById("prize-list");
-  const historyListEl = document.getElementById("history-list");
+  const drum = document.getElementById("drum");
+  const drumNumber = document.getElementById("drum-number");
+  const recentEl = document.getElementById("recent");
+  const boardEl = document.getElementById("board");
   const drawButton = document.getElementById("draw-button");
-  const soundButton = document.getElementById("sound-button");
-  const editButton = document.getElementById("edit-button");
   const resetButton = document.getElementById("reset-button");
-  const editDialog = document.getElementById("edit-dialog");
-  const editTextarea = document.getElementById("edit-textarea");
+  const drawnCountEl = document.getElementById("drawn-count");
+  const remainingCountEl = document.getElementById("remaining-count");
+  const soundButton = document.getElementById("sound-button");
 
-  // 景品リストと当選履歴（当選順の景品名）
-  let state = loadState();
+  // 抽選済み景品番号（抽選順）
+  let drawn = loadState();
   let spinning = false;
   let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
 
@@ -189,129 +183,91 @@
 
   // ---- 状態管理 ----
 
-  function sanitizePrizes(raw) {
-    if (!Array.isArray(raw)) return null;
-    const merged = new Map();
-    for (const p of raw) {
-      if (!p || typeof p.name !== "string") continue;
-      const name = p.name.trim();
-      const total = Number(p.total);
-      if (!name || !Number.isInteger(total) || total < 1) continue;
-      merged.set(name, (merged.get(name) || 0) + total);
-    }
-    if (merged.size === 0) return null;
-    return [...merged].map(([name, total]) => ({ name, total }));
-  }
-
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return defaultState();
+      if (!raw) return [];
       const parsed = JSON.parse(raw);
-      const prizes = sanitizePrizes(parsed.prizes);
-      if (!prizes) return defaultState();
-      const names = new Set(prizes.map((p) => p.name));
-      const history = Array.isArray(parsed.history)
-        ? parsed.history.filter((n) => names.has(n))
-        : [];
-      return { prizes, history };
+      if (!Array.isArray(parsed)) return [];
+      const seen = new Set();
+      return parsed.filter(
+        (n) => Number.isInteger(n) && n >= 1 && n <= MAX_NUMBER && !seen.has(n) && seen.add(n)
+      );
     } catch {
-      return defaultState();
+      return [];
     }
-  }
-
-  function defaultState() {
-    return { prizes: DEFAULT_PRIZES.map((p) => ({ ...p })), history: [] };
   }
 
   function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(drawn));
     } catch {
       // プライベートモード等で保存できなくてもゲームは続行できる
     }
   }
 
-  function wonCount(name) {
-    return state.history.filter((n) => n === name).length;
-  }
-
-  function remainingOf(prize) {
-    return Math.max(0, prize.total - wonCount(prize.name));
-  }
-
-  // 残っているクジを1本ずつ並べた配列（本数分の重み付き抽選になる）
-  function remainingTickets() {
-    const tickets = [];
-    for (const prize of state.prizes) {
-      for (let i = 0; i < remainingOf(prize); i++) tickets.push(prize.name);
+  function remainingNumbers() {
+    const drawnSet = new Set(drawn);
+    const rest = [];
+    for (let n = 1; n <= MAX_NUMBER; n++) {
+      if (!drawnSet.has(n)) rest.push(n);
     }
-    return tickets;
+    return rest;
   }
 
   // ---- 描画 ----
 
-  function showPrize(name) {
-    if (name === null) {
-      ticketPrize.textContent = "？";
-      ticketPrize.classList.remove("long");
-      return;
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    const rows = MAX_NUMBER / BOARD_COLS;
+    for (let col = 0; col < BOARD_COLS; col++) {
+      const colEl = document.createElement("div");
+      colEl.className = "board-col";
+      for (let i = 1; i <= rows; i++) {
+        const number = col * rows + i;
+        const cell = document.createElement("div");
+        cell.className = "board-cell";
+        cell.dataset.number = String(number);
+        cell.textContent = String(number);
+        colEl.appendChild(cell);
+      }
+      boardEl.appendChild(colEl);
     }
-    ticketPrize.textContent = name;
-    ticketPrize.classList.toggle("long", name.length > 8);
+  }
+
+  function showOnDrum(number) {
+    drumNumber.textContent = number === null ? "--" : String(number);
   }
 
   function render() {
-    const tickets = remainingTickets();
-    const latest = state.history.length > 0 ? state.history[state.history.length - 1] : null;
+    const latest = drawn.length > 0 ? drawn[drawn.length - 1] : null;
 
-    remainingCountEl.textContent = String(tickets.length);
+    drawnCountEl.textContent = String(drawn.length);
+    remainingCountEl.textContent = String(MAX_NUMBER - drawn.length);
 
-    if (!spinning) {
-      showPrize(latest);
-      ticketLabel.textContent = latest === null
-        ? "ビンゴおめでとう！クジを引いてね"
-        : "おめでとうございます！";
-    }
+    if (!spinning) showOnDrum(latest);
 
-    // 景品リスト（残数付き）
-    prizeListEl.innerHTML = "";
-    state.prizes.forEach((prize, i) => {
-      const remaining = remainingOf(prize);
-      const li = document.createElement("li");
-      li.className = "prize-item" + (remaining === 0 ? " out" : "");
-
-      const dot = document.createElement("span");
-      dot.className = `prize-dot dot-${i % 5}`;
-      const name = document.createElement("span");
-      name.className = "prize-name";
-      name.textContent = prize.name;
-      const count = document.createElement("span");
-      count.className = "prize-count";
-      count.textContent = `${remaining} / ${prize.total}`;
-
-      li.append(dot, name, count);
-      prizeListEl.appendChild(li);
-    });
-
-    // 当選履歴（最新が先頭）
-    historyListEl.innerHTML = "";
-    state.history
-      .map((name, i) => ({ name, order: i + 1 }))
+    // 直近チップ（最新が先頭）
+    recentEl.innerHTML = "";
+    drawn
+      .slice(-RECENT_COUNT)
       .reverse()
-      .forEach(({ name, order }, i) => {
-        const li = document.createElement("li");
-        li.className = "history-item" + (i === 0 ? " latest" : "");
-        const orderEl = document.createElement("span");
-        orderEl.className = "history-order";
-        orderEl.textContent = `${order}本目`;
-        const nameEl = document.createElement("span");
-        nameEl.textContent = name;
-        li.append(orderEl, nameEl);
-        historyListEl.appendChild(li);
+      .forEach((n, i) => {
+        const chip = document.createElement("span");
+        chip.className = "recent-chip" + (i === 0 ? " latest" : "");
+        chip.textContent = String(n);
+        recentEl.appendChild(chip);
       });
 
-    const finished = tickets.length === 0;
+    // ボード
+    const drawnSet = new Set(drawn);
+    boardEl.querySelectorAll(".board-cell").forEach((cell) => {
+      const n = Number(cell.dataset.number);
+      cell.classList.toggle("hit", drawnSet.has(n));
+      cell.classList.toggle("latest", n === latest);
+    });
+
+    const finished = drawn.length >= MAX_NUMBER;
     drawButton.disabled = spinning || finished;
     drawButton.textContent = finished ? "クジは終了！" : "クジを引く";
   }
@@ -319,21 +275,18 @@
   // ---- 抽選 ----
 
   function draw() {
-    if (spinning || editDialog.open) return;
-    const tickets = remainingTickets();
-    if (tickets.length === 0) return;
+    if (spinning) return;
+    const rest = remainingNumbers();
+    if (rest.length === 0) return;
 
-    const picked = tickets[Math.floor(Math.random() * tickets.length)];
+    const picked = rest[Math.floor(Math.random() * rest.length)];
     spinning = true;
-    ticket.classList.add("spinning");
-    ticket.classList.remove("settled");
-    ticketLabel.textContent = "何が当たるかな…？";
+    drum.classList.add("spinning");
+    drum.classList.remove("settled");
     playDrumRoll(SPIN_DURATION_MS);
     render();
 
     const start = performance.now();
-    // 残っている景品名をシャッフル表示する候補（重複を除く）
-    const candidates = [...new Set(tickets)];
 
     // 確定は setTimeout で保証する（タブが非表示だと rAF が止まるため）
     setTimeout(() => settle(picked), SPIN_DURATION_MS);
@@ -345,95 +298,49 @@
       const interval =
         SPIN_START_INTERVAL_MS +
         (SPIN_END_INTERVAL_MS - SPIN_START_INTERVAL_MS) * progress * progress;
-      showPrize(candidates[Math.floor(Math.random() * candidates.length)]);
+      showOnDrum(rest[Math.floor(Math.random() * rest.length)]);
       setTimeout(() => requestAnimationFrame(tick), interval);
     }
     requestAnimationFrame(tick);
   }
 
   function settle(picked) {
-    state.history.push(picked);
+    drawn.push(picked);
     saveState();
     spinning = false;
-    ticket.classList.remove("spinning");
-    ticket.classList.add("settled");
+    drum.classList.remove("spinning");
+    drum.classList.add("settled");
     playFanfare();
     render();
   }
 
   function reset() {
     if (spinning) return;
-    if (
-      state.history.length > 0 &&
-      !confirm("当選履歴を消して、クジを全部箱に戻します。よろしいですか？")
-    ) {
+    if (drawn.length > 0 && !confirm("当選履歴をすべて消してリセットします。よろしいですか？")) {
       return;
     }
-    state.history = [];
+    drawn = [];
     saveState();
-    ticket.classList.remove("settled");
+    drum.classList.remove("settled");
     render();
   }
-
-  // ---- 景品リスト編集 ----
-
-  function openEditor() {
-    if (spinning) return;
-    editTextarea.value = state.prizes.map((p) => `${p.name} x${p.total}`).join("\n");
-    editDialog.showModal();
-  }
-
-  // 「景品名 x本数」を1行ずつ解釈する。x本数 省略時は1本、同名はまとめる
-  function parsePrizeText(text) {
-    const merged = new Map();
-    for (const line of text.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const match = trimmed.match(/^(.*?)(?:\s+[x×]\s*(\d+))?$/i);
-      const name = match[1].trim();
-      if (!name) continue;
-      const count = match[2] ? Number(match[2]) : 1;
-      if (count < 1) continue;
-      merged.set(name, (merged.get(name) || 0) + count);
-    }
-    return [...merged].map(([name, total]) => ({ name, total }));
-  }
-
-  editDialog.addEventListener("close", () => {
-    if (editDialog.returnValue !== "save") return;
-    const prizes = parsePrizeText(editTextarea.value);
-    if (prizes.length === 0) {
-      alert("景品が1つもありません。変更は保存されませんでした。");
-      return;
-    }
-    const names = new Set(prizes.map((p) => p.name));
-    state = {
-      prizes,
-      // リストから消えた景品の履歴も残すと残数計算が狂うため、現存する景品の履歴のみ残す
-      history: state.history.filter((n) => names.has(n)),
-    };
-    saveState();
-    render();
-  });
 
   drawButton.addEventListener("click", draw);
   resetButton.addEventListener("click", reset);
   soundButton.addEventListener("click", toggleSound);
-  editButton.addEventListener("click", openEditor);
   document.addEventListener("keydown", (e) => {
     if (
       e.code === "Space" &&
       !e.repeat &&
-      !editDialog.open &&
       document.activeElement !== resetButton &&
-      document.activeElement !== soundButton &&
-      document.activeElement !== editButton
+      document.activeElement !== soundButton
     ) {
       e.preventDefault();
       draw();
     }
   });
 
+  buildBoard();
   renderSoundButton();
   render();
 })();
